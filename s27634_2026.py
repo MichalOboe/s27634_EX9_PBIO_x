@@ -10,8 +10,6 @@ import random
 
 def generate_sequence(length: int) -> str:
     """Zwraca losową sekwencję DNA o zadanej długości."""
-    # random.choices losuje 'length' znaków z listy nukleotydów (z powtórzeniami)
-    # ''.join() skleja listę znaków w jeden string
     nucleotides = ['A', 'C', 'G', 'T']
     return ''.join(random.choices(nucleotides, k=length))
 
@@ -23,14 +21,12 @@ def calculate_stats(sequence: str) -> dict:
             'GC' (wartość float, %).
     """
     length = len(sequence)
-    # Liczymy wystąpienia każdego nukleotydu i przeliczamy na procenty
     stats = {
         'A': sequence.count('A') / length * 100,
         'C': sequence.count('C') / length * 100,
         'G': sequence.count('G') / length * 100,
         'T': sequence.count('T') / length * 100,
     }
-    # GC-content to suma procentów G i C
     stats['GC'] = stats['G'] + stats['C']
     return stats
 
@@ -38,28 +34,18 @@ def calculate_stats(sequence: str) -> dict:
 def insert_name(sequence: str, name: str) -> str:
     """Wstawia imię w losową pozycję sekwencji.
     Imię zapisane małymi literami."""
-    # Losujemy pozycję wstawienia: od 0 do len(sequence) włącznie
-    # (włącznie oznacza że można wstawić też na końcu)
     pos = random.randint(0, len(sequence))
-    # Kroimy sekwencję na dwie części i wstawiamy imię małymi literami w środek
     return sequence[:pos] + name.lower() + sequence[pos:]
 
 
 def format_fasta(seq_id: str, description: str,
                  sequence: str, line_width: int = 80) -> str:
     """Zwraca sformatowany rekord FASTA jako string."""
-    # Linia nagłówkowa: zaczyna się od '>', potem ID
-    # Jeśli opis nie jest pusty, dodajemy spację i opis
     if description:
         header = f">{seq_id} {description}"
     else:
         header = f">{seq_id}"
-
-    # Łamiemy sekwencję na linie o szerokości line_width
-    # range(0, len, step) daje nam indeksy początków kolejnych linii
     lines = [sequence[i:i + line_width] for i in range(0, len(sequence), line_width)]
-
-    # Składamy nagłówek i linie sekwencji w jeden string
     return header + '\n' + '\n'.join(lines) + '\n'
 
 
@@ -122,7 +108,34 @@ def validate_fasta_file(filepath: str) -> list:
 
 def main():
     """Główna funkcja programu."""
-    pass
+    # 1. Pobieramy dane od użytkownika
+    length = validate_positive_int("Podaj długość sekwencji: ")
+    seq_id = validate_seq_id("Podaj ID sekwencji: ")
+    description = input("Podaj opis sekwencji: ")
+    name = input("Podaj imię: ")
+
+    # 2. Generujemy sekwencję i od razu liczymy statystyki
+    #    (PRZED wstawieniem imienia — imię nie może wpływać na statystyki)
+    sequence = generate_sequence(length)
+    stats = calculate_stats(sequence)
+
+    # 3. Wstawiamy imię do sekwencji (tylko do wyświetlenia w pliku)
+    sequence_with_name = insert_name(sequence, name)
+
+    # 4. Formatujemy rekord FASTA i zapisujemy do pliku
+    fasta_record = format_fasta(seq_id, description, sequence_with_name)
+    filename = f"{seq_id}.fasta"
+    with open(filename, 'w') as f:
+        f.write(fasta_record)
+    print(f"Sekwencja zapisana do pliku: {filename}")
+
+    # 5. Wypisujemy statystyki (na podstawie czystej sekwencji bez imienia)
+    print(f"Statystyki sekwencji (n={length}):")
+    print(f"  A: {stats['A']:.2f}%")
+    print(f"  C: {stats['C']:.2f}%")
+    print(f"  G: {stats['G']:.2f}%")
+    print(f"  T: {stats['T']:.2f}%")
+    print(f"  GC-content: {stats['GC']:.2f}%")
 
 
 if __name__ == "__main__":
