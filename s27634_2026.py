@@ -110,33 +110,26 @@ def find_orfs(sequence: str, min_length: int = 1) -> list:
     stop_codons = {'TAA', 'TAG', 'TGA'}
     orfs = []
 
-    # Szukamy we wszystkich trzech ramkach odczytu (offset 0, 1, 2)
     for frame in range(3):
         i = frame
         while i < len(sequence) - 2:
             codon = sequence[i:i + 3]
-            # Szukamy kodonu startowego ATG
             if codon == 'ATG':
                 start = i
-                # Od ATG idziemy do przodu kodon po kodonie szukając STOPa
                 for j in range(i + 3, len(sequence) - 2, 3):
                     stop_codon = sequence[j:j + 3]
                     if stop_codon in stop_codons:
                         end = j + 3
                         orf_length = end - start
-                        # Zapisujemy tylko ORF-y o minimalnej długości
-                        # min_length podana w kodonach, więc mnożymy przez 3
                         if orf_length >= min_length * 3:
                             orfs.append({
-                                'start': start + 1,  # indeks od 1
+                                'start': start + 1,
                                 'end': end,
                                 'length': orf_length
                             })
-                        # Przeskakujemy za znaleziony ORF
                         i = end
                         break
                 else:
-                    # Nie znaleziono STOPa — idziemy dalej
                     i += 3
             else:
                 i += 3
@@ -147,7 +140,46 @@ def find_orfs(sequence: str, min_length: int = 1) -> list:
 def validate_fasta_file(filepath: str) -> list:
     """Wczytuje plik FASTA i sprawdza poprawność formatu.
     Zwraca listę błędów (pustą jeśli plik jest poprawny)."""
-    pass
+    errors = []
+    # Dozwolone znaki w sekwencji DNA (duże i małe — bo wstawiamy imię małymi)
+    allowed_chars = set('ACGTacgtRYSWKMBDHVNryswkmbdhvn')
+
+    try:
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        errors.append(f"Błąd: plik '{filepath}' nie istnieje.")
+        return errors
+
+    if not lines:
+        errors.append("Błąd: plik jest pusty.")
+        return errors
+
+    # Sprawdzamy czy pierwszy rekord zaczyna się od '>'
+    if not lines[0].startswith('>'):
+        errors.append("Linia 1: brak nagłówka (linia powinna zaczynać się od '>').")
+
+    in_sequence = False
+    for i, line in enumerate(lines, start=1):
+        line = line.rstrip('\n')
+
+        if line.startswith('>'):
+            # Nagłówek — sprawdzamy czy nie jest sam '>'
+            if len(line.strip()) == 1:
+                errors.append(f"Linia {i}: nagłówek nie zawiera ID.")
+            in_sequence = True
+        elif in_sequence:
+            # Linia sekwencji — sprawdzamy dozwolone znaki
+            invalid = [c for c in line if c not in allowed_chars]
+            if invalid:
+                errors.append(f"Linia {i}: niedozwolone znaki: {set(invalid)}")
+            # Sprawdzamy szerokość linii (max 80, ostatnia może być krótsza)
+            if len(line) > 80:
+                errors.append(f"Linia {i}: za szeroka ({len(line)} znaków, max 80).")
+        else:
+            errors.append(f"Linia {i}: zawartość przed pierwszym nagłówkiem.")
+
+    return errors
 
 
 def main():
@@ -210,6 +242,17 @@ def main():
             print(f"  start={orf['start']}, end={orf['end']}, długość={orf['length']} nt")
     else:
         print(f"\nNie znaleziono ORF-ów o minimalnej długości {min_orf} kodon/y.")
+
+    # 9. Walidator pliku FASTA
+    validate_path = input("\nPodaj ścieżkę do pliku FASTA do walidacji (Enter aby pominąć): ").strip()
+    if validate_path:
+        errors = validate_fasta_file(validate_path)
+        if not errors:
+            print("Plik jest poprawny formatowo.")
+        else:
+            print(f"Znalezione błędy ({len(errors)}):")
+            for error in errors:
+                print(f"  {error}")
 
 
 if __name__ == "__main__":
