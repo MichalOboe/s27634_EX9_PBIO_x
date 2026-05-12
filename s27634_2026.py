@@ -83,11 +83,8 @@ def find_motif(sequence: str, motif: str) -> list:
     """Wyszukuje motyw w sekwencji. Zwraca listę pozycji (indeksowanie od 1)."""
     positions = []
     motif = motif.upper()
-    # Przesuwamy okno o szerokości len(motif) przez całą sekwencję
-    # i sprawdzamy czy wycinek pasuje do szukanego motywu
     for i in range(len(sequence) - len(motif) + 1):
         if sequence[i:i + len(motif)] == motif:
-            # +1 bo biologia indeksuje od 1, nie od 0
             positions.append(i + 1)
     return positions
 
@@ -95,23 +92,56 @@ def find_motif(sequence: str, motif: str) -> list:
 def complement(sequence: str) -> str:
     """Zwraca nić komplementarną do podanej sekwencji DNA.
     Reguły: A<->T, C<->G."""
-    # Słownik par komplementarnych
     pairs = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
-    # Zamieniamy każdy nukleotyd na jego parę
     return ''.join(pairs[n] for n in sequence)
 
 
 def reverse_complement(sequence: str) -> str:
     """Zwraca nić odwrotnie komplementarną.
     Czyli: najpierw komplementarna, potem odwrócona."""
-    # [::-1] to pythonowy sposób na odwrócenie stringa
     return complement(sequence)[::-1]
 
 
 def find_orfs(sequence: str, min_length: int = 1) -> list:
     """Wyszukuje wszystkie ORF-y (ATG -> STOP) o minimalnej długości.
-    Zwraca listę słowników z kluczami: start, end, length."""
-    pass
+    Kodon STOP to TAA, TAG lub TGA.
+    min_length to minimalna liczba kodonów (wliczając START i STOP).
+    Zwraca listę słowników z kluczami: start, end, length (wszystko w nt, indeks od 1)."""
+    stop_codons = {'TAA', 'TAG', 'TGA'}
+    orfs = []
+
+    # Szukamy we wszystkich trzech ramkach odczytu (offset 0, 1, 2)
+    for frame in range(3):
+        i = frame
+        while i < len(sequence) - 2:
+            codon = sequence[i:i + 3]
+            # Szukamy kodonu startowego ATG
+            if codon == 'ATG':
+                start = i
+                # Od ATG idziemy do przodu kodon po kodonie szukając STOPa
+                for j in range(i + 3, len(sequence) - 2, 3):
+                    stop_codon = sequence[j:j + 3]
+                    if stop_codon in stop_codons:
+                        end = j + 3
+                        orf_length = end - start
+                        # Zapisujemy tylko ORF-y o minimalnej długości
+                        # min_length podana w kodonach, więc mnożymy przez 3
+                        if orf_length >= min_length * 3:
+                            orfs.append({
+                                'start': start + 1,  # indeks od 1
+                                'end': end,
+                                'length': orf_length
+                            })
+                        # Przeskakujemy za znaleziony ORF
+                        i = end
+                        break
+                else:
+                    # Nie znaleziono STOPa — idziemy dalej
+                    i += 3
+            else:
+                i += 3
+
+    return orfs
 
 
 def validate_fasta_file(filepath: str) -> list:
@@ -166,11 +196,20 @@ def main():
     print(f"\nNić komplementarna:           {comp[:40]}{'...' if length > 40 else ''}")
     print(f"Nić odwrotnie komplementarna: {rev_comp[:40]}{'...' if length > 40 else ''}")
 
-    # Dopisujemy obie nici jako dodatkowe rekordy do pliku FASTA
     with open(filename, 'a') as f:
         f.write(format_fasta(f"{seq_id}_comp", "nic komplementarna", comp))
         f.write(format_fasta(f"{seq_id}_revcomp", "nic odwrotnie komplementarna", rev_comp))
     print(f"Nici komplementarne dopisane do pliku: {filename}")
+
+    # 8. Szukanie ORF-ów
+    min_orf = validate_positive_int("\nPodaj minimalną długość ORF (w kodonach, min. 1): ", 1, 100_000)
+    orfs = find_orfs(sequence, min_orf)
+    if orfs:
+        print(f"\nZnalezione ORF-y (min. {min_orf} kodon/y):")
+        for orf in orfs:
+            print(f"  start={orf['start']}, end={orf['end']}, długość={orf['length']} nt")
+    else:
+        print(f"\nNie znaleziono ORF-ów o minimalnej długości {min_orf} kodon/y.")
 
 
 if __name__ == "__main__":
