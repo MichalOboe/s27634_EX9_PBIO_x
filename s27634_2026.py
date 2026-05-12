@@ -38,13 +38,29 @@ def calculate_stats(sequence: str) -> dict:
 def insert_name(sequence: str, name: str) -> str:
     """Wstawia imię w losową pozycję sekwencji.
     Imię zapisane małymi literami."""
-    pass
+    # Losujemy pozycję wstawienia: od 0 do len(sequence) włącznie
+    # (włącznie oznacza że można wstawić też na końcu)
+    pos = random.randint(0, len(sequence))
+    # Kroimy sekwencję na dwie części i wstawiamy imię małymi literami w środek
+    return sequence[:pos] + name.lower() + sequence[pos:]
 
 
 def format_fasta(seq_id: str, description: str,
                  sequence: str, line_width: int = 80) -> str:
     """Zwraca sformatowany rekord FASTA jako string."""
-    pass
+    # Linia nagłówkowa: zaczyna się od '>', potem ID
+    # Jeśli opis nie jest pusty, dodajemy spację i opis
+    if description:
+        header = f">{seq_id} {description}"
+    else:
+        header = f">{seq_id}"
+
+    # Łamiemy sekwencję na linie o szerokości line_width
+    # range(0, len, step) daje nam indeksy początków kolejnych linii
+    lines = [sequence[i:i + line_width] for i in range(0, len(sequence), line_width)]
+
+    # Składamy nagłówek i linie sekwencji w jeden string
+    return header + '\n' + '\n'.join(lines) + '\n'
 
 
 def validate_positive_int(prompt: str,
@@ -55,14 +71,12 @@ def validate_positive_int(prompt: str,
     while True:
         raw = input(prompt)
         try:
-            # Próbujemy zamienić wpisany tekst na liczbę całkowitą
             value = int(raw)
             if min_val <= value <= max_val:
                 return value
             else:
                 print(f"Błąd: wartość musi być liczbą całkowitą z zakresu [{min_val}, {max_val}].")
         except ValueError:
-            # Użytkownik wpisał coś co nie jest liczbą całkowitą (np. "abc")
             print(f"Błąd: wartość musi być liczbą całkowitą z zakresu [{min_val}, {max_val}].")
 
 
@@ -71,8 +85,6 @@ def validate_seq_id(prompt: str) -> str:
     W przypadku błędu powtarza pytanie."""
     while True:
         seq_id = input(prompt)
-        # split() dzieli po białych znakach — jeśli wynik ma >1 element lub jest pusty,
-        # to ID zawiera spacje lub jest puste
         if seq_id and len(seq_id.split()) == 1:
             return seq_id
         else:
