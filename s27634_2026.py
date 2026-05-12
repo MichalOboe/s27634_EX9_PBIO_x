@@ -81,17 +81,31 @@ def validate_seq_id(prompt: str) -> str:
 
 def find_motif(sequence: str, motif: str) -> list:
     """Wyszukuje motyw w sekwencji. Zwraca listę pozycji (indeksowanie od 1)."""
-    pass
+    positions = []
+    motif = motif.upper()
+    # Przesuwamy okno o szerokości len(motif) przez całą sekwencję
+    # i sprawdzamy czy wycinek pasuje do szukanego motywu
+    for i in range(len(sequence) - len(motif) + 1):
+        if sequence[i:i + len(motif)] == motif:
+            # +1 bo biologia indeksuje od 1, nie od 0
+            positions.append(i + 1)
+    return positions
 
 
 def complement(sequence: str) -> str:
-    """Zwraca nić komplementarną do podanej sekwencji DNA."""
-    pass
+    """Zwraca nić komplementarną do podanej sekwencji DNA.
+    Reguły: A<->T, C<->G."""
+    # Słownik par komplementarnych
+    pairs = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+    # Zamieniamy każdy nukleotyd na jego parę
+    return ''.join(pairs[n] for n in sequence)
 
 
 def reverse_complement(sequence: str) -> str:
-    """Zwraca nić odwrotnie komplementarną."""
-    pass
+    """Zwraca nić odwrotnie komplementarną.
+    Czyli: najpierw komplementarna, potem odwrócona."""
+    # [::-1] to pythonowy sposób na odwrócenie stringa
+    return complement(sequence)[::-1]
 
 
 def find_orfs(sequence: str, min_length: int = 1) -> list:
@@ -136,6 +150,27 @@ def main():
     print(f"  G: {stats['G']:.2f}%")
     print(f"  T: {stats['T']:.2f}%")
     print(f"  GC-content: {stats['GC']:.2f}%")
+
+    # 6. Wyszukiwanie motywów
+    motif = input("\nPodaj motyw do wyszukania (Enter aby pominąć): ").strip()
+    if motif:
+        positions = find_motif(sequence, motif)
+        if positions:
+            print(f"Motyw '{motif}' znaleziony na pozycjach: {positions}")
+        else:
+            print(f"Motyw '{motif}' nie został znaleziony.")
+
+    # 7. Sekwencja komplementarna i odwrotnie komplementarna
+    comp = complement(sequence)
+    rev_comp = reverse_complement(sequence)
+    print(f"\nNić komplementarna:           {comp[:40]}{'...' if length > 40 else ''}")
+    print(f"Nić odwrotnie komplementarna: {rev_comp[:40]}{'...' if length > 40 else ''}")
+
+    # Dopisujemy obie nici jako dodatkowe rekordy do pliku FASTA
+    with open(filename, 'a') as f:
+        f.write(format_fasta(f"{seq_id}_comp", "nic komplementarna", comp))
+        f.write(format_fasta(f"{seq_id}_revcomp", "nic odwrotnie komplementarna", rev_comp))
+    print(f"Nici komplementarne dopisane do pliku: {filename}")
 
 
 if __name__ == "__main__":
