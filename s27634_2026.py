@@ -195,11 +195,16 @@ def main():
     sequence = generate_sequence(length)
     stats = calculate_stats(sequence)
 
-    # 3. Wstawiamy imię do sekwencji (tylko do wyświetlenia w pliku)
-    sequence_with_name = insert_name(sequence, name)
+    # 3. Formatujemy czystą sekwencję FASTA (linie po 80 znaków)
+    #    Imię wstawiamy dopiero do gotowego bloku sekwencji,
+    #    żeby nie zaburzało szerokości linii biologicznych
+    fasta_record = format_fasta(seq_id, description, sequence)
+    # Rozdzielamy nagłówek od bloku sekwencji, wstawiamy imię tylko w blok
+    header_line, seq_block = fasta_record.split('\n', 1)
+    seq_block_with_name = insert_name(seq_block, name)
+    fasta_record = header_line + '\n' + seq_block_with_name
 
-    # 4. Formatujemy rekord FASTA i zapisujemy do pliku
-    fasta_record = format_fasta(seq_id, description, sequence_with_name)
+    # 4. Zapisujemy do pliku
     filename = f"{seq_id}.fasta"
     with open(filename, 'w') as f:
         f.write(fasta_record)
